@@ -5,6 +5,9 @@ use std::{
     str,
 };
 
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
+
 fn clone_into_array<A, T>(slice: &[T]) -> A
 where
     A: Default + AsMut<[T]>,
@@ -13,6 +16,14 @@ where
     let mut a = A::default();
     <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
     a
+}
+
+fn challenge() -> String {
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect()
 }
 
 struct Server {
@@ -26,16 +37,16 @@ impl fmt::Display for Server {
     }
 }
 
-struct Segments {
+struct ServerListSegments {
     header: Vec<u8>,
     command: Vec<u8>,
     servers: Vec<Server>,
     invalid: Vec<Vec<u8>>,
 }
 
-impl Segments {
-    fn new() -> Segments {
-        Segments {
+impl ServerListSegments {
+    fn new() -> ServerListSegments {
+        ServerListSegments {
             header: Vec::new(),
             command: Vec::new(),
             servers: Vec::new(),
@@ -44,22 +55,29 @@ impl Segments {
     }
 }
 
-fn main() {
-    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
-    socket.connect("master.xlabs.dev:20810").unwrap();
-
-    // Send request
-    // header xFF xFF xFF xFF, command getservers, game IW4, protocol 150, params?
-    socket
-        .send(b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty")
-        .unwrap();
+fn send(socket: &UdpSocket, packet: &[u8]) -> [u8; 4096] {
+    socket.send(packet).expect("failed to send message");
     let mut buffer = [0; 4096];
-    let len = socket.recv(&mut buffer).unwrap();
+    socket.recv_from(&mut buffer).expect("failed to receive message");
+    buffer
+}
+
+fn connect(address: &str) -> UdpSocket {
+    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
+    socket.set_read_timeout(Some(std::time::Duration::from_secs(1))).unwrap();
+    socket.connect(address).unwrap();
+    socket
+}
+
+fn get_servers() -> ServerListSegments {
+    let socket = connect("master.xlabs.dev:20810");
+    // header xFF xFF xFF xFF, command getservers, game IW4, protocol 150, full & empty seem to make no difference
+    let packet = b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty";
+    let response = send(&socket, packet);
 
     // Parse response
-
     // Response segments
-    let mut segments = Segments::new();
+    let mut segments = ServerListSegments::new();
     // Current segment
     let mut segment: Vec<u8> = Vec::new();
     // Total count of bytes in response
@@ -67,7 +85,7 @@ fn main() {
     // Total count of segments in response
     let mut segment_count = 0;
 
-    for b in &buffer[0..len] {
+    for b in &response {
         // Header segment
         // Valid header is 4 bytes long, which all are 0xFF (ÿ)
         if *b == 0xFF && byte_count < 4 {
@@ -83,7 +101,6 @@ fn main() {
         if *b == 0x5c {
             if segment_count == 0 {
                 // First segment is command
-                println!("Command: {:?}", str::from_utf8(&segment).unwrap());
                 segments.command = segment;
             } else if segment.len() == 6 {
                 // The following segments with length 6 are servers
@@ -99,10 +116,10 @@ fn main() {
                 };
                 segments.servers.push(server);
             } else {
-                println!(
-                    "Invalid segment at position {}: {:?}",
-                    segment_count, segment
-                );
+                // println!(
+                //     "Invalid segment at position {}: {:?}",
+                //     segment_count, segment
+                // );
                 segments.invalid.push(segment);
             }
 
@@ -115,12 +132,57 @@ fn main() {
         byte_count += 1;
     }
 
-    // We do a little printing
-    for server in &segments.servers {
-        println!("{:#}", server);
+    segments
+}
+
+fn get_server_info(ip: Ipv4Addr, port: u16) -> String {
+    let socket = connect(&format!("{}:{}", ip, port));
+    let packet = b"\xFF\xFF\xFF\xFFgetinfo";
+    let response = send(&socket, packet);
+
+    let mut byte_count = 0;
+    let mut header = [0; 4];
+    let mut info = Vec::new();
+    let mut command: Vec<u8> = Vec::new();
+    let mut command_found = false;
+
+    for b in &response {
+    
+        if *b == 0xFF && byte_count < 4 {
+            header[byte_count] = *b;
+            byte_count += 1;
+            continue;
+        } else if *b != 0xFF && byte_count < 4 {
+            println!("Invalid header byte {:02x} at position {}", b, byte_count);
+            break;
+        }
+
+        if !command_found {
+            if *b == 0x5c {
+                command_found = true;
+            }
+            command.push(*b);
+            continue;
+        }
+    
+        info.push(*b);
+        byte_count += 1;
     }
 
+    str::from_utf8(&info).unwrap().to_string().trim().to_string()
+}
+
+fn main() {
+    let segments = get_servers();
     println!("Servers: {}", segments.servers.len());
     println!("Header: {:?}", segments.header);
     println!("Command: {:?}", segments.command);
+
+    for server in &segments.servers {
+        let info = get_server_info(server.ip, server.port);
+        println!("{}", info);
+    }
+
+    // let info = get_server_info("51.195.206.173".parse().unwrap(), 28963);
+    // println!("{}", info);
 }
