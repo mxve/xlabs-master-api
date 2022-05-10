@@ -1,7 +1,9 @@
-use std::convert::AsMut;
-use std::net::{Ipv4Addr, UdpSocket};
-use std::fmt;
-use std::str;
+use std::{
+    convert::AsMut,
+    fmt,
+    net::{Ipv4Addr, UdpSocket},
+    str,
+};
 
 fn clone_into_array<A, T>(slice: &[T]) -> A
 where
@@ -15,7 +17,7 @@ where
 
 struct Server {
     ip: std::net::Ipv4Addr,
-    port: u16
+    port: u16,
 }
 
 impl fmt::Display for Server {
@@ -48,10 +50,11 @@ fn main() {
 
     // Send request
     // header xFF xFF xFF xFF, command getservers, game IW4, protocol 150, params?
-    socket.send(b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty").unwrap();
+    socket
+        .send(b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty")
+        .unwrap();
     let mut buffer = [0; 4096];
     let len = socket.recv(&mut buffer).unwrap();
-
 
     // Parse response
 
@@ -89,14 +92,17 @@ fn main() {
                 let addrr: [u8; 4] = clone_into_array(&segment[0..4]);
                 // Last 2 bytes are the port
                 let port: [u8; 2] = clone_into_array(&segment[4..6]);
-    
+
                 let server = Server {
                     ip: Ipv4Addr::from(addrr),
-                    port: u16::from_be_bytes(port)
+                    port: u16::from_be_bytes(port),
                 };
                 segments.servers.push(server);
             } else {
-                println!("Invalid segment at position {}: {:?}", segment_count, segment);
+                println!(
+                    "Invalid segment at position {}: {:?}",
+                    segment_count, segment
+                );
                 segments.invalid.push(segment);
             }
 
