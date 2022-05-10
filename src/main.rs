@@ -5,8 +5,8 @@ use std::{
     str,
 };
 
-use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 
 fn clone_into_array<A, T>(slice: &[T]) -> A
 where
@@ -55,16 +55,41 @@ impl ServerListSegments {
     }
 }
 
-fn send(socket: &UdpSocket, packet: &[u8]) -> [u8; 4096] {
-    socket.send(packet).expect("failed to send message");
+struct SendResult {
+    error: bool,
+    size: usize,
+    buffer: [u8; 4096],
+}
+
+fn send(socket: &UdpSocket, packet: &[u8]) -> SendResult {
     let mut buffer = [0; 4096];
-    socket.recv_from(&mut buffer).expect("failed to receive message");
-    buffer
+    let mut error = false;
+    socket.send(packet).ok().expect("failed to send message");
+    let (size, peer) = socket
+        .recv_from(&mut buffer)
+        .unwrap_or_else(|_| {
+            return (
+                0,
+                std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, 0)),
+            );
+        });
+
+    if size == 0 {
+        error = true;
+    }
+
+    SendResult {
+        error,
+        size,
+        buffer,
+    }
 }
 
 fn connect(address: &str) -> UdpSocket {
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
-    socket.set_read_timeout(Some(std::time::Duration::from_secs(1))).unwrap();
+    socket
+        .set_read_timeout(Some(std::time::Duration::from_millis(300)))
+        .unwrap();
     socket.connect(address).unwrap();
     socket
 }
@@ -85,7 +110,7 @@ fn get_servers() -> ServerListSegments {
     // Total count of segments in response
     let mut segment_count = 0;
 
-    for b in &response {
+    for b in &response.buffer {
         // Header segment
         // Valid header is 4 bytes long, which all are 0xFF (ÿ)
         if *b == 0xFF && byte_count < 4 {
@@ -135,10 +160,22 @@ fn get_servers() -> ServerListSegments {
     segments
 }
 
-fn get_server_info(ip: Ipv4Addr, port: u16) -> String {
+struct Info {
+    error: bool,
+    text: String,
+}
+
+fn get_server_info(ip: Ipv4Addr, port: u16) -> Info {
     let socket = connect(&format!("{}:{}", ip, port));
     let packet = b"\xFF\xFF\xFF\xFFgetinfo";
     let response = send(&socket, packet);
+
+    if response.error {
+        return Info {
+            error: true,
+            text: "".to_string(),
+        }
+    }
 
     let mut byte_count = 0;
     let mut header = [0; 4];
@@ -146,8 +183,7 @@ fn get_server_info(ip: Ipv4Addr, port: u16) -> String {
     let mut command: Vec<u8> = Vec::new();
     let mut command_found = false;
 
-    for b in &response {
-    
+    for b in &response.buffer {
         if *b == 0xFF && byte_count < 4 {
             header[byte_count] = *b;
             byte_count += 1;
@@ -164,12 +200,20 @@ fn get_server_info(ip: Ipv4Addr, port: u16) -> String {
             command.push(*b);
             continue;
         }
-    
+
         info.push(*b);
         byte_count += 1;
     }
 
-    str::from_utf8(&info).unwrap().to_string().trim().to_string()
+    
+    Info {
+        error: false,
+        text: str::from_utf8(&info)
+        .unwrap()
+        .to_string()
+        .trim()
+        .to_string()
+    }
 }
 
 fn main() {
@@ -180,9 +224,11 @@ fn main() {
 
     for server in &segments.servers {
         let info = get_server_info(server.ip, server.port);
-        println!("{}", info);
+        if !info.error {
+            println!("{}", info.text);
+ 
+        }
     }
-
     // let info = get_server_info("51.195.206.173".parse().unwrap(), 28963);
     // println!("{}", info);
 }
