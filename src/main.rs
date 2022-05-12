@@ -2,10 +2,7 @@
 
 use clokwerk::{Scheduler, TimeUnits};
 use rocket::response::NamedFile;
-use std::fs::File;
-use std::io::BufWriter;
-use std::path::Path;
-use std::time::Duration;
+use std::{fs::File, io::BufWriter, path::Path, time::Duration};
 
 mod master;
 
@@ -26,11 +23,11 @@ fn index() -> Option<NamedFile> {
 
 fn main() {
     let mut scheduler = Scheduler::new();
-    scheduler.every(1.minutes()).run(|| {
+    scheduler.every(2.minutes()).run(|| {
         cache_servers();
     });
     cache_servers();
-    let thread_handle = scheduler.watch_thread(Duration::from_millis(100));
+    let thread_handle = scheduler.watch_thread(Duration::from_millis(500));
     rocket::ignite().mount("/", routes![index]).launch();
     thread_handle.stop();
 }

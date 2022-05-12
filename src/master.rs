@@ -9,6 +9,14 @@ use std::{
 // use rand::distributions::Alphanumeric;
 // use rand::{thread_rng, Rng};
 
+// pub fn challenge() -> String {
+//     thread_rng()
+//         .sample_iter(&Alphanumeric)
+//         .take(15)
+//         .map(char::from)
+//         .collect()
+// }
+
 pub fn clone_into_array<A, T>(slice: &[T]) -> A
 where
     A: Default + AsMut<[T]>,
@@ -18,14 +26,6 @@ where
     <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
     a
 }
-
-// pub fn challenge() -> String {
-//     thread_rng()
-//         .sample_iter(&Alphanumeric)
-//         .take(15)
-//         .map(char::from)
-//         .collect()
-// }
 
 pub struct Server {
     pub ip: std::net::Ipv4Addr,
