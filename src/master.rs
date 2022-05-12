@@ -1,31 +1,12 @@
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::{
-    convert::AsMut,
     fmt,
     net::{Ipv4Addr, UdpSocket},
     str,
 };
 
-// use rand::distributions::Alphanumeric;
-// use rand::{thread_rng, Rng};
-
-// pub fn challenge() -> String {
-//     thread_rng()
-//         .sample_iter(&Alphanumeric)
-//         .take(15)
-//         .map(char::from)
-//         .collect()
-// }
-
-pub fn clone_into_array<A, T>(slice: &[T]) -> A
-where
-    A: Default + AsMut<[T]>,
-    T: Clone,
-{
-    let mut a = A::default();
-    <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
-    a
-}
+#[path = "utils.rs"]
+mod utils;
 
 pub struct Server {
     pub ip: std::net::Ipv4Addr,
@@ -154,9 +135,9 @@ pub fn get_servers() -> ServerListSegments {
                 // The following segments with length 6 are servers
 
                 // First 4 bytes are the ip address
-                let addrr: [u8; 4] = clone_into_array(&segment[0..4]);
+                let addrr: [u8; 4] = utils::clone_into_array(&segment[0..4]);
                 // Last 2 bytes are the port
-                let port: [u8; 2] = clone_into_array(&segment[4..6]);
+                let port: [u8; 2] = utils::clone_into_array(&segment[4..6]);
 
                 let server = Server {
                     ip: Ipv4Addr::from(addrr),
