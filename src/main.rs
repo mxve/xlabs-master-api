@@ -1,33 +1,36 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 use clokwerk::{Scheduler, TimeUnits};
-use rocket::response::NamedFile;
-use std::{fs::File, io::BufWriter, path::Path, time::Duration};
+use std::{fs::File, io::BufWriter, time::Duration};
 
+mod api;
 mod master;
 
-fn cache_servers() {
-    let servers = master::get_servers_full();
+#[macro_use]
+extern crate rocket;
+
+fn cache_servers(game: master::Game) {
+    let game_name = &game.to_string();
+    let servers = master::get_servers_full(game);
     // write servers to json file
-    let file = File::create("servers.json").unwrap();
+    let file = File::create(format!("servers_{}.json", game_name)).unwrap();
     let mut writer = BufWriter::new(file);
     serde_json::to_writer_pretty(&mut writer, &servers).unwrap();
 }
 
-#[macro_use]
-extern crate rocket;
-#[get("/servers")]
-fn index() -> Option<NamedFile> {
-    NamedFile::open(Path::new("servers.json")).ok()
+fn cache_servers_all() {
+    cache_servers(master::Game::IW4);
+    cache_servers(master::Game::IW6);
+    cache_servers(master::Game::S1);
 }
 
 fn main() {
     let mut scheduler = Scheduler::new();
     scheduler.every(2.minutes()).run(|| {
-        cache_servers();
+        cache_servers_all();
     });
-    cache_servers();
+    //cache_servers_all();
     let thread_handle = scheduler.watch_thread(Duration::from_millis(500));
-    rocket::ignite().mount("/", routes![index]).launch();
+    api::launch();
     thread_handle.stop();
 }

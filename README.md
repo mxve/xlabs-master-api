@@ -3,6 +3,6 @@
 [server](https://xlabs.plutools.pw/api/servers)
 
 ## TODO
-- [ ] Support all games
+- [x Support all games
 - [ ] Cleanup master mod
 - [ ] Implement challenge

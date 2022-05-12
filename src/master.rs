@@ -38,6 +38,7 @@ impl ServerListSegments {
 }
 
 pub struct FullServer {
+    pub game: String,
     pub ip: std::net::Ipv4Addr,
     pub port: u16,
     pub cod_info: String,
@@ -48,7 +49,8 @@ impl Serialize for FullServer {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("Server", 3)?;
+        let mut state = serializer.serialize_struct("Server", 4)?;
+        state.serialize_field("game", &self.game)?;
         state.serialize_field("ip", &self.ip)?;
         state.serialize_field("port", &self.port)?;
         state.serialize_field("codInfo", &self.cod_info)?;
@@ -60,6 +62,27 @@ pub struct SendResult {
     pub error: bool,
     pub size: usize,
     pub buffer: [u8; 4096],
+}
+
+pub struct Info {
+    pub error: bool,
+    pub text: String,
+}
+
+pub enum Game {
+    IW4,
+    IW6,
+    S1,
+}
+
+impl fmt::Display for Game {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Game::IW4 => write!(f, "iw4x"),
+            Game::IW6 => write!(f, "iw6x"),
+            Game::S1 => write!(f, "s1x"),
+        }
+    }
 }
 
 pub fn send(socket: &UdpSocket, packet: &[u8]) -> SendResult {
@@ -84,11 +107,6 @@ pub fn send(socket: &UdpSocket, packet: &[u8]) -> SendResult {
     }
 }
 
-pub struct Info {
-    pub error: bool,
-    pub text: String,
-}
-
 pub fn connect(address: &str) -> UdpSocket {
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
     socket
@@ -98,10 +116,15 @@ pub fn connect(address: &str) -> UdpSocket {
     socket
 }
 
-pub fn get_servers() -> ServerListSegments {
+pub fn get_servers(game: Game) -> ServerListSegments {
+    let packet = match game {
+        Game::IW4 => b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty",
+        Game::IW6 => b"\xFF\xFF\xFF\xFFgetservers\nIW6 1 full empty  ",
+        Game::S1 => b"\xFF\xFF\xFF\xFFgetservers\nS1 1 full empty   ",
+    };
+
     let socket = connect("master.xlabs.dev:20810");
-    // header xFF xFF xFF xFF, command getservers, game IW4, protocol 150, full & empty seem to make no difference
-    let packet = b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty";
+    // header xFF xFF xFF xFF, command getservers, game IW4/IW6/S1, protocol 150/1/, full & empty seem to make no difference
     let response = send(&socket, packet);
 
     // Parse response
@@ -166,7 +189,7 @@ pub fn get_servers() -> ServerListSegments {
 
 pub fn get_server_info(ip: Ipv4Addr, port: u16) -> Info {
     let socket = connect(&format!("{}:{}", ip, port));
-    let packet = b"\xFF\xFF\xFF\xFFgetinfo";
+    let packet = b"\xFF\xFF\xFF\xFFgetinfo test";
     let response = send(&socket, packet);
 
     if response.error {
@@ -213,14 +236,16 @@ pub fn get_server_info(ip: Ipv4Addr, port: u16) -> Info {
     }
 }
 
-pub fn get_servers_full() -> Vec<FullServer> {
+pub fn get_servers_full(game: Game) -> Vec<FullServer> {
     let mut servers = Vec::new();
-    let master_servers = get_servers();
+    let game_name = &game.to_string();
+    let master_servers = get_servers(game);
 
     for server in master_servers.servers {
         let info = get_server_info(server.ip, server.port);
         if !info.error {
             let full_server = FullServer {
+                game: game_name.to_string(),
                 ip: server.ip,
                 port: server.port,
                 cod_info: info.text.to_string(),
