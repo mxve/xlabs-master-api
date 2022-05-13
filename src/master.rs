@@ -13,12 +13,6 @@ pub struct Server {
     pub port: u16,
 }
 
-impl fmt::Display for Server {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.ip, self.port)
-    }
-}
-
 pub struct ServerListSegments {
     pub header: Vec<u8>,
     pub command: Vec<u8>,
