@@ -6,3 +6,4 @@
 - [x Support all games
 - [ ] Cleanup master mod
 - [ ] Implement challenge
+- [ ] get server info async

@@ -12,10 +12,13 @@ extern crate rocket;
 fn cache_servers(game: master::Game) {
     let game_name = &game.to_string();
     let servers = master::get_servers_full(game);
+    let cache_file_path = format!("servers_{}.json", game_name);
     // write servers to json file
-    let file = File::create(format!("servers_{}.json", game_name)).unwrap();
+    let file = File::create(&cache_file_path).unwrap();
     let mut writer = BufWriter::new(file);
     serde_json::to_writer_pretty(&mut writer, &servers).unwrap();
+
+    println!("Cached {1} servers for {0} -> {2}", game_name, servers.len(), cache_file_path);
 }
 
 fn cache_servers_all() {
@@ -29,7 +32,7 @@ fn main() {
     scheduler.every(2.minutes()).run(|| {
         cache_servers_all();
     });
-    //cache_servers_all();
+    cache_servers_all();
     let thread_handle = scheduler.watch_thread(Duration::from_millis(500));
     api::launch();
     thread_handle.stop();
