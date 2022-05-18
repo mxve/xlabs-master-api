@@ -18,7 +18,12 @@ fn cache_servers(game: master::Game) {
     let mut writer = BufWriter::new(file);
     serde_json::to_writer_pretty(&mut writer, &servers).unwrap();
 
-    println!("Cached {1} servers for {0} -> {2}", game_name, servers.len(), cache_file_path);
+    println!(
+        "Cached {1} servers for {0} -> {2}",
+        game_name,
+        servers.len(),
+        cache_file_path
+    );
 }
 
 fn cache_servers_all() {

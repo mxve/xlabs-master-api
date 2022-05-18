@@ -111,15 +111,40 @@ pub fn connect(address: &str) -> UdpSocket {
 }
 
 pub fn get_servers(game: Game) -> ServerListSegments {
-    let packet = match game {
-        Game::IW4 => b"\xFF\xFF\xFF\xFFgetservers\nIW4 150 full empty",
-        Game::IW6 => b"\xFF\xFF\xFF\xFFgetservers\nIW6 1 full empty  ",
-        Game::S1 => b"\xFF\xFF\xFF\xFFgetservers\nS1 1 full empty   ",
-    };
+    // dpmaster "getservers"
+    let dp_command = "getservers\n".as_bytes();
 
+    // game, protocol
+    let game_info = match game {
+        Game::IW4 => "IW4 150",
+        Game::IW6 => "IW6 1",
+        Game::S1 => "S1 1",
+    }
+    .as_bytes();
+
+    let filters = " full empty".as_bytes();
+
+    // combine command and game info
+    let mut command = Vec::new();
+    command.extend_from_slice(dp_command);
+    command.extend_from_slice(game_info);
+    command.extend_from_slice(filters);
+
+    // build packet
+    // first 4 bytes are header 0xff
+    let mut packet_buffer = [0; 4096];
+    for byte in packet_buffer.iter_mut().take(4) {
+        *byte = 0xff;
+    }
+
+    // append command bytes
+    for i in 4..command.len() {
+        packet_buffer[i] = command[i - 4].to_be_bytes()[0];
+    }
+
+    // send packet
     let socket = connect("master.xlabs.dev:20810");
-    // header xFF xFF xFF xFF, command getservers, game IW4/IW6/S1, protocol 150/1/, full & empty seem to make no difference
-    let response = send(&socket, packet);
+    let response = send(&socket, &packet_buffer);
 
     // Parse response
     // Response segments
