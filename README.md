@@ -1,9 +1,17 @@
 # xlabs-api
 
-[server](https://xlabs.plutools.pw/api/servers)
+[xlabs.plutools.pw/api/](https://xlabs.plutools.pw/api/servers)
+
+## Endpoints
+All endpoints are json, unless specified otherwise.
+
+- ```/servers```
+  - All servers
+- ```/servers/<game>``` game = iw4x, iw6x, s1x
+  - Servers of specified game
 
 ## TODO
-- [x Support all games
+- [x] Support all games
 - [ ] Cleanup master mod
-- [ ] Implement challenge
+- [x] Implement challenge
 - [ ] get server info async
