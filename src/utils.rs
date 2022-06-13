@@ -1,7 +1,6 @@
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::convert::AsMut;
 
-#[allow(dead_code)]
 pub fn random_string(length: usize) -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)

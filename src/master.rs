@@ -132,7 +132,7 @@ pub fn get_servers(game: Game) -> ServerListSegments {
 
     // build packet
     // first 4 bytes are header 0xff
-    let mut packet_buffer = [0; 4096];
+    let mut packet_buffer = [0; 64];
     for byte in packet_buffer.iter_mut().take(4) {
         *byte = 0xff;
     }
@@ -207,9 +207,33 @@ pub fn get_servers(game: Game) -> ServerListSegments {
 }
 
 pub fn get_server_info(ip: Ipv4Addr, port: u16) -> Info {
+    let dpcommand = "getinfo ".as_bytes();
+
+    let challenge = utils::random_string(12);
+
+    // combine command and challenge
+    let mut command = Vec::new();
+    command.extend_from_slice(dpcommand);
+    command.extend_from_slice(challenge.as_bytes());
+
+    // build packet
+    // first 4 bytes are header 0xff
+
+    // TODO
+    // last 4 characters of challenge are returned as u0000
+    // thus the packet_buffer is 4 bytes shorter, cutting those 4 chars
+    let mut packet_buffer = [0; 20];
+    for byte in packet_buffer.iter_mut().take(4) {
+        *byte = 0xff;
+    }
+
+    // append command bytes
+    for i in 4..command.len() {
+        packet_buffer[i] = command[i - 4].to_be_bytes()[0];
+    }
+
     let socket = connect(&format!("{}:{}", ip, port));
-    let packet = b"\xFF\xFF\xFF\xFFgetinfo test";
-    let response = send(&socket, packet);
+    let response = send(&socket, &packet_buffer);
 
     if response.error {
         return Info {
