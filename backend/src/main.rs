@@ -3,11 +3,7 @@
 use clokwerk::{Scheduler, TimeUnits};
 use std::{fs::File, io::BufWriter, time::Duration};
 
-mod api;
 mod master;
-
-#[macro_use]
-extern crate rocket;
 
 fn cache_servers(game: master::Game) {
     let game_name = &game.to_string();
@@ -39,6 +35,5 @@ fn main() {
     });
     cache_servers_all();
     let thread_handle = scheduler.watch_thread(Duration::from_millis(500));
-    api::launch();
     thread_handle.stop();
 }

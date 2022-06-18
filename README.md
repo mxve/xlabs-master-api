@@ -7,7 +7,7 @@ All endpoints are json, unless specified otherwise.
 
 - ```/servers```
   - All servers
-- ```/servers/<game>``` game = iw4x, iw6x, s1x
+- ```/servers/<game>```, game = iw4x, iw6x, s1x
   - Servers of specified game
 
 ## TODO
