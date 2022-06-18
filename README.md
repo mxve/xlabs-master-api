@@ -15,3 +15,5 @@ All endpoints are json, unless specified otherwise.
 - [ ] Cleanup master mod
 - [x] Implement challenge
 - [ ] get server info async
+- [ ] get additional info from ip:port/info if tcp port is open
+- [ ] set values to -1 instead of 0 if not found in codinfo
